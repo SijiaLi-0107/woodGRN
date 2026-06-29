@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>woodGRN in Salicaceae</title>
+    
+    <!-- ================================================================= -->
+    <!-- GOOGLE ANALYTICS (GA4) BACKGROUND TRACKING - PRIVATE TO OWNER ONLY -->
+    <!-- Replace G-XXXXXXXXXX with your actual Measurement ID after registering -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JG2Q0JVWXJ"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-JG2Q0JVWXJ', {
+            'anonymize_ip': true // Complies with privacy laws while retaining city/country accuracy
+        });
+    </script>
+    <!-- ================================================================= -->
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vis-Network CDN -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- PapaParse CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #network-container {
+            height: 550px;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-600 text-white p-2 rounded-lg">
+                    <i class="fa-solid fa-dna text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900">woodGRN in Salicaceae</h1>
+                    <p class="text-xs text-slate-500">Based on orthology mapping of <i>Populus alba</i> var. <i>pyramidalis</i></p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500">
+                <span id="data-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    <i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Loading database...
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- Left Control Panel -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <h2 class="text-md font-semibold text-slate-900 border-b pb-2 flex items-center">
+                        <i class="fa-solid fa-sliders text-emerald-600 mr-2"></i>Query Dashboard
+                    </h2>
+                    
+                    <!-- Species Selection -->
+                    <div class="space-y-1">
+                        <label for="species-select" class="block text-xs font-medium text-slate-700">Select Species</label>
+                        <select id="species-select" onchange="handleSpeciesChange()" class="w-full rounded-md border-slate-300 border p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="Pal_ID" selected>Populus alba var. pyramidalis (Pal)</option>
+                            <option value="Ide_ID">Idesia polycarpa (Ide)</option>
+                            <option value="Peu_ID">Populus euphratica (Peu)</option>
+                            <option value="Ssu_ID">Salix suchowensis (Ssu)</option>
+                            <option value="Ptr_ID">Populus trichocarpa (Ptr)</option>
+                            <option value="Pde_ID">Populus deltoides × Populus euramericana (Pde)</option>
+                            <option value="Pag_ID">Populus alba × Populus glandulosa (Pag)</option>
+                        </select>
+                    </div>
+
+                    <!-- Gene ID Input with Datalist -->
+                    <div class="space-y-1 relative">
+                        <label for="gene-input" class="block text-xs font-medium text-slate-700">Gene ID (Network-connected only)</label>
+                        <input type="text" id="gene-input" list="gene-list" placeholder="Select or type a gene ID..." 
+                               class="w-full rounded-md border border-slate-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <datalist id="gene-list">
+                            <!-- Populated Dynamically with strict filter -->
+                        </datalist>
+                    </div>
+
+                    <!-- Search Button -->
+                    <button id="search-btn" disabled class="w-full bg-emerald-600 text-white rounded-md py-2 px-4 hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm">
+                        <i class="fa-solid fa-magnifying-glass mr-1.5"></i> Search Network
+                    </button>
+
+                    <!-- Quick Examples -->
+                    <div class="pt-2">
+                        <span class="text-xs text-slate-500 block mb-1">Quick Examples (Click to fill):</span>
+                        <div class="flex flex-wrap gap-1.5" id="examples-box">
+                            <button onclick="fillExample('Pal_ID', 'Palv2-22268')" class="text-2xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded text-xs">Palv2-22268</button>
+                            <button onclick="fillExample('Ptr_ID', 'Potri.017G016700')" class="text-2xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded text-xs">Potri.017G016700</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature Description Panel -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm text-xs text-slate-500 space-y-2">
+                    <h3 class="font-medium text-slate-700 text-sm">Technical Features</h3>
+                    <p>• <b>Gene Selection Pool</b>: The selection pool dynamically filters out genes lacking any active regulatory links in the network database.</p>
+                    <p>• <b>Orthology Filtering</b>: Nodes lacking valid orthologs in the selected species are automatically omitted.</p>
+                    <p>• <b>Scale Limitations</b>: Graphic visualization is limited to 201 nodes and 200 edges, while the web table displays up to 200 rows. Use the export tool to retrieve the complete data list.</p>
+                </div>
+            </div>
+
+            <!-- Right Visualization & Annotation Panel -->
+            <div class="lg:col-span-3 space-y-6">
+                
+                <!-- Visualization -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative">
+                    <div class="flex items-center justify-between mb-4 border-b pb-2">
+                        <h2 class="text-md font-semibold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-network-wired text-emerald-600 mr-2"></i> Gene Regulatory Subgraph
+                        </h2>
+                        <span id="network-info" class="text-xs text-slate-500"></span>
+                    </div>
+                    
+                    <!-- Network Canvas -->
+                    <div id="network-container">
+                        <div id="network-placeholder" class="h-full flex flex-col items-center justify-center text-slate-400">
+                            <i class="fa-solid fa-search text-4xl mb-2"></i>
+                            <p class="text-sm">Select/enter a Gene ID on the left and click Search</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Node Annotation & Orthology Profile -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="flex items-center justify-between mb-4 border-b pb-2">
+                        <h2 class="text-md font-semibold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-circle-info text-emerald-600 mr-2"></i> Functional Annotation & Orthology Profiles
+                        </h2>
+                        <button id="download-btn" disabled onclick="downloadCSV()" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-emerald-700 transition flex items-center font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-file-arrow-down mr-1.5"></i> Download Complete List of this gene (CSV)
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-700 text-xs uppercase">
+                                <tr>
+                                    <th class="px-4 py-3 font-semibold">Current Species ID</th>
+                                    <th class="px-4 py-3 font-semibold">Relationship</th>
+                                    <th class="px-4 py-3 font-semibold">Ref. Gene ID (Pal)</th>
+                                    <th class="px-4 py-3 font-semibold">Arabidopsis ID</th>
+                                    <th class="px-4 py-3 font-semibold">Gene Symbol</th>
+                                    <th class="px-4 py-3 font-semibold">Functional Description</th>
+                                </tr>
+                            </thead>
+                            <tbody id="annotation-tbody" class="divide-y divide-slate-100 text-slate-600">
+                                <tr>
+                                    <td colspan="6" class="px-4 py-6 text-center text-slate-400">No data available</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Interface Controls -->
+                    <div id="pagination-controls" class="hidden flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
+                        <div class="flex flex-1 justify-between sm:hidden">
+                            <button id="btn-prev-mobile" class="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Previous</button>
+                            <button id="btn-next-mobile" class="relative ml-3 inline-flex inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Next</button>
+                        </div>
+                        <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500" id="table-range-info">
+                                    Showing 1 to 10 of 200 entries
+                                </p>
+                            </div>
+                            <div>
+                                <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                    <button id="btn-prev" class="relative inline-flex items-center rounded-l-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 transition">
+                                        <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                                    </button>
+                                    <span id="page-indicator" class="relative inline-flex items-center border-y border-slate-300 bg-slate-50 px-4 py-1.5 text-xs text-slate-600 font-semibold select-none">
+                                        Page 1 of 20
+                                    </span>
+                                    <button id="btn-next" class="relative inline-flex items-center rounded-r-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 transition">
+                                        Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="table-limit-notice" class="mt-3 text-xs text-amber-600 text-right font-medium"></div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-400">
+            Key Laboratory of Bio-resource and Eco-Environment of Ministry of Education, College of Life Sciences, Sichuan University, Chengdu, China
+        </div>
+    </footer>
+
+    <!-- Logic Script -->
+    <script>
+        // High-Speed Mirror Endpoint via jsDelivr Global CDN
+        const GITHUB_BASE = "https://cdn.jsdelivr.net/gh/SijiaLi-0107/woodGRN@main/";
+        const NET_URL = GITHUB_BASE + "Pal_core_net.txt";
+        const ANNO_URL = GITHUB_BASE + "Pal_anno.txt";
+        const ORTH_URL = GITHUB_BASE + "orth.txt";
+
+        // Academic and Performance Caps
+        const MAX_RENDER_NODES = 201; 
+        const MAX_RENDER_EDGES = 200; 
+        const MAX_TABLE_ROWS = 199;   // UI Table display ceiling
+        const TABLE_PAGE_SIZE = 10;   // 10 entries per page
+
+        // Global Data Maps
+        let networkIndex = new Map(); 
+        let annoMap = new Map();      
+        let orthToPal = {};           
+        let palToOrth = new Map();    
+        let palOriginalIds = new Set(); // Raw Pal IDs inside Pal_core_net.txt
+        let currentCandidatesSet = new Set(); // Stores filtered IDs for validation checks
+
+        // Table Pagination States
+        let tableRowsData = []; // Buffer of loaded annotated rows (limited to MAX_TABLE_ROWS)
+        let tableCurrentPage = 1;
+
+        let visNetworkInstance = null;
+
+        // Extract numbers supporting both hyphens and underscores (e.g. Palv2-22268 -> 22268)
+        function getPalNumberKey(id) {
+            if (!id) return "";
+            const match = id.match(/Palv\d+[-_](\d+)/i);
+            return match ? match[1] : id.trim();
+        }
+
+        // Verify if a node has a valid ortholog in the target species
+        function hasOrtholog(palNumKey, species) {
+            if (species === 'Pal_ID') return true;
+            const orthRow = palToOrth.get(palNumKey);
+            if (!orthRow) return false;
+            const val = orthRow[species];
+            return val && val !== '-';
+        }
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', async () => {
+            updateStatus('loading', 'Loading database in progress...');
+            try {
+                await Promise.all([
+                    loadNetworkData(),
+                    loadAnnotationData(),
+                    loadOrthologyData()
+                ]);
+                updateStatus('ready', 'Database fully loaded');
+                document.getElementById('search-btn').removeAttribute('disabled');
+                
+                // Build dynamic dropdown for default species (Pal_ID)
+                handleSpeciesChange();
+                
+                // Set up event listeners for pagination buttons
+                setupPaginationListeners();
+            } catch (error) {
+                console.error(error);
+                updateStatus('error', 'Failed to load database. Check file pathways.');
+            }
+        });
+
+        function loadNetworkData() {
+            return new Promise((resolve, reject) => {
+                Papa.parse(NET_URL, {
+                    download: true,
+                    header: true,
+                    delimiter: "\t",
+                    skipEmptyLines: true,
+                    worker: true,
+                    complete: (results) => {
+                        for (let i = 0; i < results.data.length; i++) {
+                            const edge = results.data[i];
+                            const src = getPalNumberKey(edge.source);
+                            const tgt = getPalNumberKey(edge.target);
+                            if (!src || !tgt) continue;
+
+                            palOriginalIds.add(edge.source);
+                            palOriginalIds.add(edge.target);
+
+                            if (!networkIndex.has(src)) {
+                                networkIndex.set(src, { targets: new Set(), sources: new Set() });
+                            }
+                            if (!networkIndex.has(tgt)) {
+                                networkIndex.set(tgt, { targets: new Set(), sources: new Set() });
+                            }
+                            networkIndex.get(src).targets.add(tgt);
+                            networkIndex.get(tgt).sources.add(src);
+                        }
+                        resolve();
+                    },
+                    error: (err) => reject("Network dataset load failed: " + err)
+                });
+            });
+        }
+
+        function loadAnnotationData() {
+            return new Promise((resolve, reject) => {
+                Papa.parse(ANNO_URL, {
+                    download: true,
+                    header: true,
+                    delimiter: "\t",
+                    skipEmptyLines: true,
+                    worker: true,
+                    complete: (results) => {
+                        results.data.forEach(row => {
+                            if (row.Pal_ID) {
+                                const numKey = getPalNumberKey(row.Pal_ID);
+                                annoMap.set(numKey, {
+                                    Pal_ID: row.Pal_ID,
+                                    Ath_ID: row.Ath_ID || '-',
+                                    Ath_Name: row.Ath_Name || '-',
+                                    Ath_Description: row.Ath_Description || '-'
+                                });
+                            }
+                        });
+                        resolve();
+                    },
+                    error: (err) => reject("Annotation dataset load failed: " + err)
+                });
+            });
+        }
+
+        function loadOrthologyData() {
+            return new Promise((resolve, reject) => {
+                Papa.parse(ORTH_URL, {
+                    download: true,
+                    header: true,
+                    delimiter: "\t",
+                    skipEmptyLines: true,
+                    worker: true,
+                    complete: (results) => {
+                        const headers = results.meta.fields;
+                        headers.forEach(h => {
+                            if (h !== 'Pal_ID') orthToPal[h] = new Map();
+                        });
+
+                        results.data.forEach(row => {
+                            if (!row.Pal_ID) return;
+                            const palNumKey = getPalNumberKey(row.Pal_ID);
+                            palToOrth.set(palNumKey, row);
+
+                            headers.forEach(sp => {
+                                if (sp !== 'Pal_ID' && row[sp] && row[sp] !== '-') {
+                                    const ids = row[sp].split(/[,;]/);
+                                    ids.forEach(singleId => {
+                                        orthToPal[sp].set(singleId.trim(), palNumKey);
+                                    });
+                                }
+                            });
+                        });
+                        resolve();
+                    },
+                    error: (err) => reject("Orthology mapping dataset load failed: " + err)
+                });
+            });
+        }
+
+        // Dynamically populates candidate gene list containing ONLY genes with regulatory interactions
+        function handleSpeciesChange() {
+            const species = document.getElementById('species-select').value;
+            const datalist = document.getElementById('gene-list');
+            datalist.innerHTML = ""; 
+
+            let candidateGenes = [];
+
+            if (species === 'Pal_ID') {
+                candidateGenes = Array.from(palOriginalIds);
+            } else {
+                if (orthToPal[species]) {
+                    orthToPal[species].forEach((palNumKey, spGeneId) => {
+                        if (networkIndex.has(palNumKey)) {
+                            candidateGenes.push(spGeneId);
+                        }
+                    });
+                }
+            }
+
+            candidateGenes.sort();
+            currentCandidatesSet = new Set(candidateGenes);
+
+            const fragment = document.createDocumentFragment();
+            const renderThreshold = Math.min(candidateGenes.length, 2000);
+            for (let i = 0; i < renderThreshold; i++) {
+                const opt = document.createElement('option');
+                opt.value = candidateGenes[i];
+                fragment.appendChild(opt);
+            }
+            datalist.appendChild(fragment);
+
+            const placeholderEx = (species === 'Pal_ID') ? 'Palv2-22268' : 'Potri.017G016700';
+            document.getElementById('gene-input').value = "";
+            document.getElementById('gene-input').placeholder = `Select/type, e.g. ${placeholderEx}`;
+        }
+
+        function updateStatus(state, text) {
+            const badge = document.getElementById('data-status-badge');
+            badge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ";
+            if (state === 'loading') {
+                badge.className += "bg-amber-100 text-amber-800";
+                badge.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1.5"></i> ${text}`;
+            } else if (state === 'ready') {
+                badge.className += "bg-emerald-100 text-emerald-800";
+                badge.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i> ${text}`;
+            } else {
+                badge.className += "bg-red-100 text-red-800";
+                badge.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${text}`;
+            }
+        }
+
+        function fillExample(species, geneId) {
+            document.getElementById('species-select').value = species;
+            handleSpeciesChange(); 
+            document.getElementById('gene-input').value = geneId;
+            executeSearch();
+        }
+
+        // Search Engine
+        document.getElementById('search-btn').addEventListener('click', executeSearch);
+        document.getElementById('gene-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') executeSearch();
+        });
+
+        function executeSearch() {
+            const species = document.getElementById('species-select').value;
+            const inputId = document.getElementById('gene-input').value.trim();
+
+            if (!inputId) {
+                alert("Please select or enter a valid Gene ID.");
+                return;
+            }
+
+            if (!currentCandidatesSet.has(inputId)) {
+                alert(`The ID "${inputId}" is either invalid or does not possess active regulatory connections in the database. Please select a valid gene from the drop-down list.`);
+                return;
+            }
+
+            let targetPalKey = "";
+
+            if (species === 'Pal_ID') {
+                targetPalKey = getPalNumberKey(inputId);
+            } else {
+                if (orthToPal[species] && orthToPal[species].has(inputId)) {
+                    targetPalKey = orthToPal[species].get(inputId);
+                } else {
+                    alert(`No orthologous mapping identified for [${inputId}] in orth.txt.`);
+                    return;
+                }
+            }
+
+            const nodeData = networkIndex.get(targetPalKey);
+            if (!nodeData) {
+                alert(`No regulatory interactions mapped for [${inputId}] in the network.`);
+                return;
+            }
+
+            const rawTargets = nodeData.targets; 
+            const rawSources = nodeData.sources; 
+
+            // Orthology filtration and role assignment
+            const validNodesMap = new Map(); 
+
+            // 1. Assign target query node
+            validNodesMap.set(targetPalKey, "Query Gene");
+
+            // 2. Filter target (downstream) partners
+            rawTargets.forEach(tgtKey => {
+                if (hasOrtholog(tgtKey, species)) {
+                    validNodesMap.set(tgtKey, "Regulated by Query Gene (Downstream)");
+                }
+            });
+
+            // 3. Filter regulator (upstream) partners
+            rawSources.forEach(srcKey => {
+                if (hasOrtholog(srcKey, species)) {
+                    if (validNodesMap.has(srcKey)) {
+                        validNodesMap.set(srcKey, "Co-regulated");
+                    } else {
+                        validNodesMap.set(srcKey, "Regulates Query Gene (Upstream)");
+                    }
+                }
+            });
+
+            if (validNodesMap.size <= 1) {
+                alert("Query gene exists, but none of its interacting network partners possess active orthology in " + species + ".");
+                return;
+            }
+
+            // 4. Formulate edges
+            const validEdges = [];
+            rawTargets.forEach(tgtKey => {
+                if (validNodesMap.has(tgtKey)) {
+                    validEdges.push({ source: targetPalKey, target: tgtKey });
+                }
+            });
+            rawSources.forEach(srcKey => {
+                if (validNodesMap.has(srcKey)) {
+                    validEdges.push({ source: srcKey, target: targetPalKey });
+                }
+            });
+
+            // Save globally for unfiltered downloads (including queryId for custom filename output)
+            window.currentResults = {
+                species: species,
+                queryId: inputId,
+                targetPalKey: targetPalKey,
+                nodes: validNodesMap,
+                edges: validEdges
+            };
+
+            // ==========================================
+            // TELEMETRY: TRACK QUERY EVENT IN GA4
+            if (typeof gtag === 'function') {
+                gtag('event', 'search_gene', {
+                    'species': species,
+                    'gene_id': inputId
+                });
+            }
+            // ==========================================
+
+            // 5. Construct structural buffer for datatable rows
+            tableRowsData = [];
+            validNodesMap.forEach((relation, key) => {
+                const currentId = getDisplayIdForSpecies(key, species);
+                const anno = annoMap.get(key);
+                const isCenter = (key === targetPalKey);
+                
+                tableRowsData.push({
+                    currentId: currentId,
+                    relation: relation,
+                    palId: anno ? anno.Pal_ID : `Pal-${key}`,
+                    athId: anno ? anno.Ath_ID : '-',
+                    athName: anno ? anno.Ath_Name : '-',
+                    athDesc: anno ? anno.Ath_Description : '-',
+                    isCenter: isCenter
+                });
+            });
+
+            // Save true matches length before slicing for warning markers
+            window.totalMatchedRowsCount = tableRowsData.length;
+
+            // Enforce UI Table constraint (displays up to MAX_TABLE_ROWS = 200)
+            if (tableRowsData.length > MAX_TABLE_ROWS) {
+                tableRowsData = tableRowsData.slice(0, MAX_TABLE_ROWS);
+            }
+
+            // Reset page counter
+            tableCurrentPage = 1;
+
+            // Render components
+            renderNetwork(targetPalKey, validEdges, validNodesMap, species);
+            renderAnnotationTable();
+        }
+
+        // Identify clean display IDs for species
+        function getDisplayIdForSpecies(palNumKey, species) {
+            const orthRow = palToOrth.get(palNumKey);
+            if (!orthRow) {
+                const anno = annoMap.get(palNumKey);
+                return anno ? anno.Pal_ID : `Pal-${palNumKey}`;
+            }
+            if (species === 'Pal_ID') {
+                return orthRow.Pal_ID || `Pal-${palNumKey}`;
+            }
+            return orthRow[species];
+        }
+
+        // Render vis network layout (Enforces strictly MAX_RENDER_NODES and MAX_RENDER_EDGES)
+        function renderNetwork(centerPalKey, edges, nodeNodesMap, currentSpecies) {
+            const container = document.getElementById('network-container');
+            container.innerHTML = "";
+
+            const nodeKeys = Array.from(nodeNodesMap.keys());
+            let isCapped = false;
+            let keysToRender = nodeKeys;
+            let edgesToRender = edges;
+
+            // Enforce constraints: exactly 201 nodes and 200 edges maximum
+            if (nodeKeys.length > MAX_RENDER_NODES || edges.length > MAX_RENDER_EDGES) {
+                isCapped = true;
+                const tempKeys = new Set([centerPalKey]);
+                for (let i = 0; i < nodeKeys.length; i++) {
+                    if (tempKeys.size >= MAX_RENDER_NODES) break;
+                    if (nodeKeys[i] !== centerPalKey) {
+                        tempKeys.add(nodeKeys[i]);
+                    }
+                }
+                keysToRender = Array.from(tempKeys);
+                const potentialEdges = edges.filter(e => tempKeys.has(e.source) && tempKeys.has(e.target));
+                edgesToRender = potentialEdges.slice(0, MAX_RENDER_EDGES);
+            }
+
+            const nodesArray = [];
+            const edgesArray = [];
+
+            keysToRender.forEach(key => {
+                const labelId = getDisplayIdForSpecies(key, currentSpecies);
+                const isCenter = (key === centerPalKey);
+
+                nodesArray.push({
+                    id: key,
+                    label: labelId,
+                    title: `Ref Gene: Pal-${key}`,
+                    color: {
+                        background: isCenter ? '#10b981' : '#bae6fd',
+                        border: isCenter ? '#047857' : '#0284c7',
+                        highlight: {
+                            background: isCenter ? '#34d399' : '#7dd3fc',
+                            border: isCenter ? '#059669' : '#0369a1'
+                        }
+                    },
+                    font: {
+                        color: isCenter ? '#ffffff' : '#0f172a',
+                        size: isCenter ? 14 : 11,
+                        bold: isCenter
+                    },
+                    shape: 'box',
+                    margin: 8,
+                    shadow: false
+                });
+            });
+
+            edgesToRender.forEach((edge, index) => {
+                edgesArray.push({
+                    id: 'e_' + index,
+                    from: edge.source,
+                    to: edge.target,
+                    arrows: 'to',
+                    color: { color: '#cbd5e1', highlight: '#10b981' },
+                    width: 1.2
+                });
+            });
+
+            const data = {
+                nodes: new vis.DataSet(nodesArray),
+                edges: new vis.DataSet(edgesArray)
+            };
+
+            const options = {
+                physics: {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -1200,
+                        centralGravity: 0.2,
+                        springLength: 80,
+                        springConstant: 0.05
+                    },
+                    stabilization: {
+                        enabled: true,
+                        iterations: 150,
+                        updateInterval: 50
+                    }
+                },
+                interaction: {
+                    hideEdgesOnDrag: true,
+                    hideEdgesOnZoom: true,
+                    hover: true,
+                    tooltipDelay: 150
+                }
+            };
+
+            visNetworkInstance = new vis.Network(container, data, options);
+
+            visNetworkInstance.on("stabilizationIterationsDone", function () {
+                visNetworkInstance.setOptions({ physics: false });
+            });
+
+            const capWarningText = isCapped ? ` <span class="text-amber-600 font-semibold">(Display capped at 201 nodes and 200 edges for layout optimization. Use 'Download' for the comprehensive dataset.)</span>` : "";
+            document.getElementById('network-info').innerHTML = `Rendered topology: ${nodesArray.length} nodes, ${edgesArray.length} edges. ${capWarningText}`;
+        }
+
+        // Render paginated annotation table (Enforces page-limiting chunks of 10 rows)
+        function renderAnnotationTable() {
+            const tbody = document.getElementById('annotation-tbody');
+            tbody.innerHTML = "";
+
+            const totalRows = tableRowsData.length;
+            const totalPages = Math.ceil(totalRows / TABLE_PAGE_SIZE);
+
+            if (totalRows === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">No data available</td></tr>`;
+                document.getElementById('pagination-controls').classList.add('hidden');
+                document.getElementById('table-limit-notice').innerHTML = "";
+                return;
+            }
+
+            // Expose pagination bar
+            document.getElementById('pagination-controls').classList.remove('hidden');
+
+            // Calculate chunk index limits
+            const startIndex = (tableCurrentPage - 1) * TABLE_PAGE_SIZE;
+            const endIndex = Math.min(startIndex + TABLE_PAGE_SIZE, totalRows);
+            const pageSlice = tableRowsData.slice(startIndex, endIndex);
+
+            pageSlice.forEach(row => {
+                const tr = document.createElement('tr');
+                if (row.isCenter) {
+                    tr.className = "bg-emerald-50 font-semibold";
+                }
+
+                let badgeClass = "bg-slate-100 text-slate-800";
+                if (row.relation.includes("Upstream")) {
+                    badgeClass = "bg-blue-100 text-blue-800";
+                } else if (row.relation.includes("Downstream")) {
+                    badgeClass = "bg-indigo-100 text-indigo-800";
+                } else if (row.relation === "Query Gene") {
+                    badgeClass = "bg-emerald-100 text-emerald-800 border border-emerald-300";
+                } else if (row.relation === "Co-regulated") {
+                    badgeClass = "bg-purple-100 text-purple-800";
+                }
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-950 font-medium">${row.currentId}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badgeClass}">${row.relation}</span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">${row.palId}</td>
+                    <td class="px-4 py-3 whitespace-nowrap"><a href="https://www.arabidopsis.org/servlets/TairObject?type=locus&name=${row.athId}" target="_blank" class="text-emerald-600 hover:underline">${row.athId}</a></td>
+                    <td class="px-4 py-3 whitespace-nowrap">${row.athName}</td>
+                    <td class="px-4 py-3 max-w-xs truncate" title="${row.athDesc}">${row.athDesc}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Pagination UI Labels
+            document.getElementById('page-indicator').innerText = `Page ${tableCurrentPage} of ${totalPages}`;
+            document.getElementById('table-range-info').innerText = `Showing ${startIndex + 1} to ${endIndex} of ${totalRows} entries`;
+
+            // Enable/Disable pagination buttons gracefully
+            toggleButtonState('btn-prev', tableCurrentPage === 1);
+            toggleButtonState('btn-prev-mobile', tableCurrentPage === 1);
+            toggleButtonState('btn-next', tableCurrentPage === totalPages);
+            toggleButtonState('btn-next-mobile', tableCurrentPage === totalPages);
+
+            // Handle bottom limits alert warnings
+            const trueTotal = window.totalMatchedRowsCount - 1;
+            const noticeContainer = document.getElementById('table-limit-notice');
+            if (trueTotal > MAX_TABLE_ROWS) {
+                noticeContainer.innerHTML = `* Showing capped subset (${MAX_TABLE_ROWS} out of ${trueTotal} matched records). <span class="font-semibold text-slate-700">Please download the complete list of this gene for the full dataset.</span>`;
+            } else {
+                noticeContainer.innerHTML = "";
+            }
+
+            document.getElementById('download-btn').removeAttribute('disabled');
+        }
+
+        // Setup event handlers for pagination click behaviors
+        function setupPaginationListeners() {
+            const goPrev = () => {
+                if (tableCurrentPage > 1) {
+                    tableCurrentPage--;
+                    renderAnnotationTable();
+                }
+            };
+
+            const goNext = () => {
+                const totalPages = Math.ceil(tableRowsData.length / TABLE_PAGE_SIZE);
+                if (tableCurrentPage < totalPages) {
+                    tableCurrentPage++;
+                    renderAnnotationTable();
+                }
+            };
+
+            document.getElementById('btn-prev').addEventListener('click', goPrev);
+            document.getElementById('btn-prev-mobile').addEventListener('click', goPrev);
+            document.getElementById('btn-next').addEventListener('click', goNext);
+            document.getElementById('btn-next-mobile').addEventListener('click', goNext);
+        }
+
+        // Toggle state parameters for buttons
+        function toggleButtonState(elementId, shouldDisable) {
+            const btn = document.getElementById(elementId);
+            if (shouldDisable) {
+                btn.setAttribute('disabled', 'true');
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.removeAttribute('disabled');
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Uncapped export CSV mechanism with Query ID in filename
+        function downloadCSV() {
+            if (!window.currentResults) {
+                alert("Perform a search query first before downloading.");
+                return;
+            }
+            const { species, queryId, nodes } = window.currentResults;
+            
+            // UTF-8 BOM representation for direct compatibility in Excel imports
+            let csvContent = "\ufeff"; 
+            csvContent += "Current Species ID,Relationship,Reference ID (Pal),Arabidopsis ID,Gene Symbol,Functional Description\n";
+
+            nodes.forEach((relation, key) => {
+                const currentId = getDisplayIdForSpecies(key, species);
+                const anno = annoMap.get(key);
+                const palId = anno ? anno.Pal_ID : `Pal-${key}`;
+                const athId = anno ? anno.Ath_ID : '-';
+                const athName = anno ? anno.Ath_Name : '-';
+                
+                let athDesc = anno ? anno.Ath_Description : '-';
+                athDesc = athDesc.replace(/"/g, '""').replace(/\r?\n/g, ' ');
+
+                csvContent += `"${currentId}","${relation}","${palId}","${athId}","${athName}","${athDesc}"\n`;
+            });
+
+            // ==========================================
+            // TELEMETRY: TRACK DOWNLOAD EVENT IN GA4
+            if (typeof gtag === 'function') {
+                gtag('event', 'download_csv', {
+                    'species': species,
+                    'query_id': queryId
+                });
+            }
+            // ==========================================
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            // Filename customisation: Includes Species ID and exact Query ID
+            link.setAttribute("download", `woodGRN_Results_${species}_${queryId}_Unfiltered.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
